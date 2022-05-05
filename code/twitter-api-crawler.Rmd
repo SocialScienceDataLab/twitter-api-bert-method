@@ -1,0 +1,81 @@
+---
+title: "MZES SSDL Input Talk: Collection, Management, and Analysis of Twitter Data: Using the Twitter API for Academic Research and BERT (Andreas Küpfer, TU Darmstadt & MZES)"
+date: 2022-05-04
+output: html_notebook
+---
+
+```{r}
+# install.packages("pacman")
+
+## ---- Packages ----
+pacman::p_load(
+  dplyr,
+  academictwitteR,
+  quanteda,
+  purrr
+)
+
+# setting the token used for authentication
+set_bearer()
+```
+
+```{r}
+# loading some user IDs of German MPs on Twitter
+german_mps <- read.csv("data/MP_de_twitter_uid.csv",
+                       colClasses=c("user_id"="character"))
+```
+
+
+```{r}
+# function to retrieve tweets in a specific time period of a single user
+# (list of user IDs would be possible but one should keep
+# the max. query string of 1024 characters in mind)
+get_tweets_from_user <- function(user_id) {
+  get_all_tweets(
+    users = user_id,
+    start_tweets = "2017-01-01T00:00:00Z",
+    end_tweets = "2021-09-30T00:00:00Z",
+    data_path = "data/raw/",
+    n = Inf)
+}
+
+# call function for each MP in the list
+walk(german_mps[["user_id"]], get_tweets_from_user)
+
+# in case of an interruption in between the data collection
+# of a user resume the collection process:
+# resume_collection(data_path = "data/raw/")
+
+# in case you want to update a set of crawled tweets
+# update the collection until a specified end date:
+# update_collection(data_path = "data/raw/", end_tweets = "2022-04-30T00:00:00Z")
+```
+
+```{r}
+# concatenate all retrieved tweets into one dataframe & select needed columns
+# Another option: set parameter "user" to TRUE to retrieve user information
+tweets_df <- bind_tweets(data_path = "data/raw/", output_format = "tidy") %>%
+  select(tweet_id, text, author_id, user_username, created_at, lang, sourcetweet_type, sourcetweet_id, sourcetweet_author_id, sourcetweet_text)
+
+head(tweets_df)
+```
+
+```{r}
+# Store the tweets as .csv
+write.csv(tweets_df, "data/raw/tweets_german_mp.csv", row.names = FALSE)
+```
+
+```{r}
+tweet_corpus <- corpus(tweets_df[["text"]], 
+  docnames = tweets_df[["tweet_id"]]) # sets tweet_ids as document names to re-identify
+
+# "2020 wurden in Berlin ca. 18.800 Miet- in Eigentumswohnungen umgewandelt. #Umwandlungsverbot"
+dtm <- dfm(tweet_corpus %>% tokens(remove_punct = TRUE, remove_numbers = TRUE)) %>%
+  dfm_tolower() %>% # removes capitialization
+  dfm_remove(stopwords("german")) %>% # removes German stopwords
+  dfm_wordstem(language = "german") # transforms words to their German wordstems
+# "wurd berlin ca miet- eigentumswohn umgewandelt #umwandlungsverbot"
+
+dtm
+```
+
