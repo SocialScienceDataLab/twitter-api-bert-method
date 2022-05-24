@@ -8,4 +8,4 @@ As a highly relevant platform for political as well as social online interaction
 
 📝 [Slides](https://github.com/SocialScienceDataLab/twitter-api-bert-method/blob/main/slides-twitter-api-bert-method.pdf)
 
-👤 [Andreas Küpfer](https://twitter.com/ankuepfer) is a graduate of the Mannheim Master in Data Science and an incoming doctoral researcher at the University of Darmstadt. His interdisciplinary research interests include text as data, applying machine learning technologies, and substantial inference in the fields of political communication and political competition.
+👤 [Andreas Küpfer](https://twitter.com/ankuepfer) is a graduate of the Mannheim Master in Data Science and an incoming doctoral researcher at the Technical University of Darmstadt. His interdisciplinary research interests include text as data, applying machine learning technologies, and substantial inference in the fields of political communication and political competition.
