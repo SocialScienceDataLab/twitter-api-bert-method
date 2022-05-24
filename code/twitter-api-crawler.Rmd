@@ -5,24 +5,23 @@ output: html_notebook
 ---
 
 ```{r}
-# install.packages("pacman")
+## Save package names as a vector of strings
+pkgs <- c("dplyr", "academictwitteR", "quanteda", "purrr")
 
-## ---- Packages ----
-pacman::p_load(
-  dplyr,
-  academictwitteR,
-  quanteda,
-  purrr
-)
+## Install uninstalled packages
+lapply(pkgs[!(pkgs %in% installed.packages())], install.packages)
+
+## Load all packages to library and adjust options
+lapply(pkgs, library, character.only = TRUE)
 
 # setting the token used for authentication
-set_bearer()
+academictwitteR::set_bearer()
 ```
 
 ```{r}
-# loading some user IDs of German MPs on Twitter
 german_mps <- read.csv("data/MP_de_twitter_uid.csv",
                        colClasses=c("user_id"="character"))
+head(german_mps)
 ```
 
 
@@ -30,17 +29,19 @@ german_mps <- read.csv("data/MP_de_twitter_uid.csv",
 # function to retrieve tweets in a specific time period of a single user
 # (list of user IDs would be possible but one should keep
 # the max. query string of 1024 characters in mind)
+
 get_tweets_from_user <- function(user_id) {
-  get_all_tweets(
+  # Another option is to add "query" parameter
+  academictwitteR::get_all_tweets(
     users = user_id,
-    start_tweets = "2017-01-01T00:00:00Z",
+    start_tweets = "2021-01-01T00:00:00Z",
     end_tweets = "2021-09-30T00:00:00Z",
     data_path = "data/raw/",
-    n = Inf)
+    n = 100)
 }
 
 # call function for each MP in the list
-walk(german_mps[["user_id"]], get_tweets_from_user)
+purrr::walk(german_mps[["user_id"]], get_tweets_from_user)
 
 # in case of an interruption in between the data collection
 # of a user resume the collection process:
@@ -52,12 +53,21 @@ walk(german_mps[["user_id"]], get_tweets_from_user)
 ```
 
 ```{r}
-# concatenate all retrieved tweets into one dataframe & select needed columns
+# concatenate all retrieved tweets into one dataframe and select which columns
+# should be kept
 # Another option: set parameter "user" to TRUE to retrieve user information
-tweets_df <- bind_tweets(data_path = "data/raw/", output_format = "tidy") %>%
-  select(tweet_id, text, author_id, user_username, created_at, lang, sourcetweet_type, sourcetweet_id, sourcetweet_author_id, sourcetweet_text)
-
-head(tweets_df)
+tweets_df <- academictwitteR::bind_tweets(data_path = "data/raw/",
+                                          output_format = "tidy") %>%
+  dplyr::select(
+    tweet_id,
+    text,
+    author_id,
+    user_username,
+    created_at,
+    sourcetweet_type,
+    sourcetweet_text,
+    lang
+  )
 ```
 
 ```{r}
@@ -66,16 +76,24 @@ write.csv(tweets_df, "data/raw/tweets_german_mp.csv", row.names = FALSE)
 ```
 
 ```{r}
-tweet_corpus <- corpus(tweets_df[["text"]], 
-  docnames = tweets_df[["tweet_id"]]) # sets tweet_ids as document names to re-identify
+# creates a corpus and sets tweet_ids as document names to re-identify
+tweet_corpus <- quanteda::corpus(tweets_df[["text"]],
+                                 docnames = tweets_df[["tweet_id"]])
 
-# "2020 wurden in Berlin ca. 18.800 Miet- in Eigentumswohnungen umgewandelt. #Umwandlungsverbot"
-dtm <- dfm(tweet_corpus %>% tokens(remove_punct = TRUE, remove_numbers = TRUE)) %>%
-  dfm_tolower() %>% # removes capitialization
-  dfm_remove(stopwords("german")) %>% # removes German stopwords
-  dfm_wordstem(language = "german") # transforms words to their German wordstems
+# "2020 wurden in Berlin ca. 18.800 Miet-
+# in Eigentumswohnungen umgewandelt. #Umwandlungsverbot"
+dfm <-
+  quanteda::dfm(tweet_corpus %>%
+                  quanteda::tokens(
+                    remove_punct = TRUE,
+                    remove_numbers = TRUE)) %>%
+  quanteda::dfm_tolower() %>% # removes capitialization
+  quanteda::dfm_remove(
+    stopwords("german")) %>% # removes German stopwords
+  quanteda::dfm_wordstem(
+    language = "german") # transforms words to their German wordstems
 # "wurd berlin ca miet- eigentumswohn umgewandelt #umwandlungsverbot"
 
-dtm
+head(dfm)
 ```
 
